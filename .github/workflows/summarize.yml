@@ -1,0 +1,40 @@
+name: News Summarizer
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install telethon google-generativeai
+
+      - name: Restore session
+        run: |
+          echo "${{ secrets.SESSION_B64 }}" | base64 -d > session.session
+
+      - name: Run summarizer
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CHANNELS: ${{ secrets.CHANNELS }}
+        run: python summarizer_action.py
+
+      - name: Commit and push
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add summaries.json
+          git commit -m "update $(date)" || echo "No changes"
+          git push
