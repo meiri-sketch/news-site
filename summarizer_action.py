@@ -50,7 +50,7 @@ def save_summary(text, count):
     except:
         data = {"summaries": []}
     data["summaries"].append({
-        "timestamp": datetime.now().isoformat(),
+"timestamp": (datetime.utcnow() + __import__('datetime').timedelta(hours=3)).isoformat(),
         "text": text,
         "count": count
     })
