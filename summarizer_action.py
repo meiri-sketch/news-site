@@ -17,8 +17,10 @@ genai.configure(api_key=GEMINI_API_KEY)
 gemini = genai.GenerativeModel("gemini-2.5-flash")
 client = TelegramClient("session", TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
+def israel_time():
+    return datetime.utcnow() + timedelta(hours=3)
 
-async def fetch_all_messages(hours_back=1):
+async def fetch_all_messages(hours_back=2):
     since = datetime.utcnow() - timedelta(hours=hours_back)
     all_messages = []
     for channel in CHANNELS:
@@ -33,41 +35,43 @@ async def fetch_all_messages(hours_back=1):
             print("שגיאה: " + channel + " " + str(e))
     return all_messages
 
-
 def summarize(messages):
     if not messages:
-        return "לא פורסמו חדשות בשעה האחרונה.", 0
+        return None, 0
     combined = "\n\n---\n\n".join(messages)
-    prompt = "להלן הודעות מערוצי חדשות בטלגרם מהשעה האחרונה:\n\n" + combined + "\n\nצור סיכום חדשות תמציתי בעברית. כל נקודה תתחיל ב-•"
+    prompt = "להלן הודעות מערוצי חדשות בטלגרם מהשעתיים האחרונות:\n\n" + combined + "\n\nצור סיכום חדשות תמציתי בעברית. כל נקודה תתחיל ב-*"
     response = gemini.generate_content(prompt)
     return response.text, len(messages)
 
-
-def save_summary(text, count):
+def save_and_update(text, count):
     try:
         with open(SUMMARIES_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
     except:
-        data = {"summaries": []}
-    data["summaries"].append({
-"timestamp": (datetime.utcnow() + __import__('datetime').timedelta(hours=3)).isoformat(),
-        "text": text,
-        "count": count
-    })
-    data["summaries"] = data["summaries"][-MAX_SUMMARIES:]
+        data = {"summaries": [], "last_checked": ""}
+
+    now = israel_time().isoformat()
+    data["last_checked"] = now
+
+    if text:
+        data["summaries"].append({
+            "timestamp": now,
+            "text": text,
+            "count": count
+        })
+        data["summaries"] = data["summaries"][-MAX_SUMMARIES:]
+
     with open(SUMMARIES_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print("נשמר")
 
-
 async def main():
-    print("מריץ סיכום " + datetime.now().strftime("%H:%M %d/%m/%Y"))
+    print("מריץ סיכום " + israel_time().strftime("%H:%M %d/%m/%Y"))
     async with client:
         messages = await fetch_all_messages(2)
         print("נמצאו " + str(len(messages)) + " הודעות")
     text, count = summarize(messages)
-    save_summary(text, count)
+    save_and_update(text, count)
     print("סיכום פורסם!")
-
 
 asyncio.run(main())
