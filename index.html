@@ -245,7 +245,10 @@ function renderCard(s, isLatest) {
   if (items) {
     bodyHtml = '<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
   } else {
-    bodyHtml = `<p>${s.text}</p>`;
+ const formatted = s.text
+  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  .replace(/\n/g, '<br>');
+bodyHtml = `<p>${formatted}</p>`;
   }
 
   card.innerHTML = `
