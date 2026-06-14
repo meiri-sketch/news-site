@@ -279,7 +279,7 @@ async function load() {
     sorted.forEach((s, i) => feed.appendChild(renderCard(s, i === 0)));
 
     const last = new Date(sorted[0].timestamp);
-    document.getElementById('last-update').textContent =
+  document.getElementById('last-update').textContent =
       'עודכן: ' + last.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
 
   } catch {
