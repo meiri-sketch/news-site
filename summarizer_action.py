@@ -63,7 +63,7 @@ def save_summary(text, count):
 async def main():
     print("מריץ סיכום " + datetime.now().strftime("%H:%M %d/%m/%Y"))
     async with client:
-        messages = await fetch_all_messages(1)
+        messages = await fetch_all_messages(2)
         print("נמצאו " + str(len(messages)) + " הודעות")
     text, count = summarize(messages)
     save_summary(text, count)
