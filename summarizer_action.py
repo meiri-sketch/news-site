@@ -10,6 +10,12 @@ TELEGRAM_API_HASH = os.environ["TELEGRAM_API_HASH"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 CHANNELS = os.environ["CHANNELS"].split(",")
 
+CHANNEL_NAMES = {
+    "t.me/abualiexpress": "אבו עלי אקספרס",
+    "t.me/amitsegal": "עמית סגל",
+    "t.me/grinzaig": "אבישי גרינצייג",
+}
+
 MAX_SUMMARIES = 20
 SUMMARIES_FILE = "summaries.json"
 
@@ -24,12 +30,14 @@ async def fetch_all_messages(hours_back=2):
     since = datetime.utcnow() - timedelta(hours=hours_back)
     all_messages = []
     for channel in CHANNELS:
+        channel = channel.strip()
+        name = CHANNEL_NAMES.get(channel, channel)
         try:
-            async for msg in client.iter_messages(channel.strip(), limit=100):
+            async for msg in client.iter_messages(channel, limit=100):
                 if msg.date.replace(tzinfo=None) < since:
                     break
                 if msg.text and len(msg.text.strip()) > 20:
-                    all_messages.append(msg.text.strip())
+                    all_messages.append(f"[מקור: {name}]\n{msg.text.strip()}")
             print("נשלף: " + channel)
         except Exception as e:
             print("שגיאה: " + channel + " " + str(e))
@@ -39,7 +47,18 @@ def summarize(messages):
     if not messages:
         return None, 0
     combined = "\n\n---\n\n".join(messages)
-    prompt = "להלן הודעות מערוצי חדשות בטלגרם מהשעתיים האחרונות:\n\n" + combined + "\n\nצור סיכום חדשות תמציתי בעברית. כל נקודה תתחיל ב-*"
+    prompt = """להלן הודעות מערוצי חדשות בטלגרם מהשעתיים האחרונות. כל הודעה מסומנת במקורה.
+
+""" + combined + """
+
+אנא צור סיכום חדשות בעברית לפי הכללים הבאים:
+1. סדר את הידיעות לפי קטגוריות (למשל: ביטחוני, פוליטיקה, כלכלה, בינלאומי וכו') לפי ההקשר
+2. כתוב כותרת לכל קטגוריה בשורה נפרדת עם ** משני הצדדים
+3. תחת כל קטגוריה כתוב את הידיעות, כל ידיעה מתחילה ב-•
+4. בסוף כל ידיעה ציין את המקור בסוגריים, למשל: (עמית סגל)
+5. אם כמה מקורות דיווחו על אותה ידיעה — אחד אותם לידיעה אחת וציין את כל המקורות
+6. השמט תוכן פרסומי או ממומן לחלוטין"""
+
     response = gemini.generate_content(prompt)
     return response.text, len(messages)
 
