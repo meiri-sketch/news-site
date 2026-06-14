@@ -53,7 +53,7 @@ def summarize(messages):
 
 אנא צור סיכום חדשות בעברית לפי הכללים הבאים:
 1. סדר את הידיעות לפי קטגוריות (למשל: ביטחוני, פוליטיקה, כלכלה, בינלאומי וכו') לפי ההקשר
-2. כתוב כותרת לכל קטגוריה בשורה נפרדת עם ** משני הצדדים
+2. כתוב כותרת לכל קטגוריה בשורה נפרדת מודגשת עם ** משני הצדדים
 3. תחת כל קטגוריה כתוב את הידיעות, כל ידיעה מתחילה ב-•
 4. בסוף כל ידיעה ציין את המקור בסוגריים, למשל: (עמית סגל)
 5. אם כמה מקורות דיווחו על אותה ידיעה — אחד אותם לידיעה אחת וציין את כל המקורות
@@ -62,35 +62,60 @@ def summarize(messages):
     response = gemini.generate_content(prompt)
     return response.text, len(messages)
 
-def save_and_update(text, count):
-    try:
-        with open(SUMMARIES_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except:
-        data = {"summaries": [], "last_checked": ""}
+def daily_summary(summaries):
+    if len(summaries) < 2:
+        return None
+    recent = summaries[-8:]
+    texts = [s["text"] for s in recent if s.get("count", 0) > 0]
+    if not texts:
+        return None
+    combined = "\n\n---\n\n".join(texts)
+    prompt = """להלן סיכומי חדשות מהשעות האחרונות:
 
+""" + combined + """
+
+צור תמצית קצרה של 3-5 נקודות עיקריות מכל השעות האחרונות בעברית. התחל כל נקודה ב-•"""
+    try:
+        response = gemini.generate_content(prompt)
+        return response.text
+    except:
+        return None
+
+def save_and_update(text, count, summaries_data):
     now = israel_time().isoformat()
-    data["last_checked"] = now
+    summaries_data["last_checked"] = now
 
     if text:
-        data["summaries"].append({
+        summaries_data["summaries"].append({
             "timestamp": now,
             "text": text,
             "count": count
         })
-        data["summaries"] = data["summaries"][-MAX_SUMMARIES:]
+        summaries_data["summaries"] = summaries_data["summaries"][-MAX_SUMMARIES:]
+
+    digest = daily_summary(summaries_data["summaries"])
+    if digest:
+        summaries_data["digest"] = digest
 
     with open(SUMMARIES_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(summaries_data, f, ensure_ascii=False, indent=2)
     print("נשמר")
 
 async def main():
     print("מריץ סיכום " + israel_time().strftime("%H:%M %d/%m/%Y"))
+
+    try:
+        with open(SUMMARIES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except:
+        data = {"summaries": [], "last_checked": "", "digest": ""}
+
     async with client:
         messages = await fetch_all_messages(2)
         print("נמצאו " + str(len(messages)) + " הודעות")
+
     text, count = summarize(messages)
-    save_and_update(text, count)
+    save_and_update(text, count, data)
     print("סיכום פורסם!")
 
 asyncio.run(main())
