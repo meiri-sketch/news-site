@@ -257,6 +257,12 @@ function renderCard(s, isLatest) {
 bodyHtml = `<p>${formatted}</p>`;
   }
 
+ const digestHtml = s.digest ? `
+    <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+      <div style="font-size:13px; color:var(--accent); font-weight:500; margin-bottom:8px;">📌 תקציר השעות האחרונות</div>
+      <p style="font-size:14px; line-height:1.6; color:#b8b5ae;">${s.digest}</p>
+    </div>` : '';
+
   card.innerHTML = `
     <div class="card-header">
       <div class="card-time">
@@ -265,7 +271,7 @@ bodyHtml = `<p>${formatted}</p>`;
       </div>
       <div class="card-count">${s.count || ''} פריטים</div>
     </div>
-    <div class="card-body">${bodyHtml}</div>`;
+    <div class="card-body">${bodyHtml}${digestHtml}</div>`;
   return card;
 }
 
