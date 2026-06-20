@@ -26,7 +26,7 @@ client = TelegramClient("session", TELEGRAM_API_ID, TELEGRAM_API_HASH)
 def israel_time():
     return datetime.utcnow() + timedelta(hours=3)
 
-async def fetch_all_messages(hours_back=2):
+async def fetch_all_messages(hours_back=1):
     since = datetime.utcnow() - timedelta(hours=hours_back)
     all_messages = []
     for channel in CHANNELS:
@@ -47,7 +47,7 @@ def summarize(messages):
     if not messages:
         return None, 0
     combined = "\n\n---\n\n".join(messages)
-    prompt = """להלן הודעות מערוצי חדשות בטלגרם מהשעתיים האחרונות. כל הודעה מסומנת במקורה.
+    prompt = """להלן הודעות מערוצי חדשות בטלגרם מהשעה האחרונה בלבד. כל הודעה מסומנת במקורה.
 
 """ + combined + """
 
@@ -57,27 +57,37 @@ def summarize(messages):
 3. תחת כל קטגוריה כתוב את הידיעות, כל ידיעה מתחילה ב-•
 4. בסוף כל ידיעה ציין את המקור בסוגריים, למשל: (עמית סגל)
 5. אם כמה מקורות דיווחו על אותה ידיעה — אחד אותם לידיעה אחת וציין את כל המקורות
-6. השמט תוכן פרסומי או ממומן לחלוטין"""
+6. השמט תוכן פרסומי או ממומן לחלוטין
+7. התייחס רק לחדשות החדשות מהשעה האחרונה, אל תחזור על דברים ישנים"""
 
     response = gemini.generate_content(prompt)
     return response.text, len(messages)
 
-def daily_summary(summaries):
-    if len(summaries) < 2:
+def three_hour_digest(summaries):
+    """תקציר קצר של 3 השעות האחרונות"""
+    now = israel_time()
+    cutoff = now - timedelta(hours=3)
+    recent = []
+    for s in summaries:
+        try:
+            ts = datetime.fromisoformat(s["timestamp"])
+            if ts >= cutoff and s.get("count", 0) > 0:
+                recent.append(s["text"])
+        except:
+            continue
+
+    if not recent:
         return None
-    recent = summaries[-8:]
-    texts = [s["text"] for s in recent if s.get("count", 0) > 0]
-    if not texts:
-        return None
-    combined = "\n\n---\n\n".join(texts)
-    prompt = """להלן סיכומי חדשות מהשעות האחרונות:
+
+    combined = "\n\n---\n\n".join(recent)
+    prompt = """להלן סיכומי חדשות מ-3 השעות האחרונות:
 
 """ + combined + """
 
-צור תמצית קצרה של 3-5 נקודות עיקריות מכל השעות האחרונות בעברית. התחל כל נקודה ב-•"""
+כתוב תקציר קצר ביותר של 2-3 שורות בלבד, המסכם את הדברים החשובים ביותר מ-3 השעות האחרונות. בלי כותרות, בלי בולטים — פסקה קצרה ורציפה."""
     try:
         response = gemini.generate_content(prompt)
-        return response.text
+        return response.text.strip()
     except:
         return None
 
@@ -93,9 +103,10 @@ def save_and_update(text, count, summaries_data):
         })
         summaries_data["summaries"] = summaries_data["summaries"][-MAX_SUMMARIES:]
 
-    digest = daily_summary(summaries_data["summaries"])
+    digest = three_hour_digest(summaries_data["summaries"])
     if digest:
         summaries_data["digest"] = digest
+        summaries_data["digest_time"] = now
 
     with open(SUMMARIES_FILE, "w", encoding="utf-8") as f:
         json.dump(summaries_data, f, ensure_ascii=False, indent=2)
@@ -111,7 +122,7 @@ async def main():
         data = {"summaries": [], "last_checked": "", "digest": ""}
 
     async with client:
-        messages = await fetch_all_messages(2)
+        messages = await fetch_all_messages(1)
         print("נמצאו " + str(len(messages)) + " הודעות")
 
     text, count = summarize(messages)
