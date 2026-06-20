@@ -95,18 +95,16 @@ def save_and_update(text, count, summaries_data):
     now = israel_time().isoformat()
     summaries_data["last_checked"] = now
 
+    digest = three_hour_digest(summaries_data["summaries"])
+
     if text:
         summaries_data["summaries"].append({
             "timestamp": now,
             "text": text,
-            "count": count
+            "count": count,
+            "digest": digest
         })
         summaries_data["summaries"] = summaries_data["summaries"][-MAX_SUMMARIES:]
-
-    digest = three_hour_digest(summaries_data["summaries"])
-    if digest:
-        summaries_data["digest"] = digest
-        summaries_data["digest_time"] = now
 
     with open(SUMMARIES_FILE, "w", encoding="utf-8") as f:
         json.dump(summaries_data, f, ensure_ascii=False, indent=2)
