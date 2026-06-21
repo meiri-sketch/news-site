@@ -20,7 +20,7 @@ MAX_SUMMARIES = 20
 SUMMARIES_FILE = "summaries.json"
 
 genai.configure(api_key=GEMINI_API_KEY)
-gemini = genai.GenerativeModel("gemini-2.5-flash")
+gemini = genai.GenerativeModel("gemini-2.5-flash-lite")
 client = TelegramClient("session", TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
 def israel_time():
